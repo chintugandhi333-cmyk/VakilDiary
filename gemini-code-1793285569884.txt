@@ -1,0 +1,165 @@
+$root = "VakilDiary"
+$dirs = @(
+    "$root/.github/workflows",
+    "$root/gradle/wrapper",
+    "$root/app/src/main/java/com/vakildiary/app/adapter",
+    "$root/app/src/main/java/com/vakildiary/app/data",
+    "$root/app/src/main/res/values",
+    "$root/app/src/main/res/layout"
+)
+foreach ($d in $dirs) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
+
+# .gitignore
+Set-Content -Path "$root/.gitignore" -Value @'
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+'@
+
+# gradle.properties
+Set-Content -Path "$root/gradle.properties" -Value @'
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+android.useAndroidX=true
+android.enableJetifier=true
+kotlin.code.style=official
+'@
+
+# settings.gradle.kts
+Set-Content -Path "$root/settings.gradle.kts" -Value @'
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "VakilDiary"
+include(":app")
+'@
+
+# build.gradle.kts (Project)
+Set-Content -Path "$root/build.gradle.kts" -Value @'
+plugins {
+    id("com.android.application") version "8.2.2" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+    id("org.jetbrains.kotlin.kapt") version "1.9.22" apply false
+}
+'@
+
+# gradle-wrapper.properties
+Set-Content -Path "$root/gradle/wrapper/gradle-wrapper.properties" -Value @'
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+'@
+
+# GitHub workflow
+Set-Content -Path "$root/.github/workflows/build.yml" -Value @'
+name: Build Debug APK
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@v3
+      - run: bash ./gradlew assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VakilDiary-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+'@
+
+# app/build.gradle.kts
+Set-Content -Path "$root/app/build.gradle.kts" -Value @'
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("kotlin-kapt")
+}
+android {
+    namespace = "com.vakildiary.app"
+    compileSdk = 34
+    defaultConfig {
+        applicationId = "com.vakildiary.app"
+        minSdk = 24
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+dependencies {
+    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("com.google.android.material:material:1.11.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("androidx.webkit:webkit:1.9.0")
+    val roomVersion = "2.6.1"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    kapt("androidx.room:room-compiler:$roomVersion")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+}
+'@
+
+# AndroidManifest.xml
+Set-Content -Path "$root/app/src/main/AndroidManifest.xml" -Value @'
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.vakildiary.app">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <application
+        android:allowBackup="true"
+        android:label="VakilDiary"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.VakilDiary"
+        android:usesCleartextTraffic="true">
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".AddCaseActivity" />
+        <activity android:name=".EcourtsWebViewActivity" />
+    </application>
+</manifest>
+'@
+
+# Compress into ZIP
+Compress-Archive -Path $root -DestinationPath "VakilDiary.zip" -Force
+Write-Host "Success! VakilDiary.zip has been created in your current folder." -ForegroundColor Green
